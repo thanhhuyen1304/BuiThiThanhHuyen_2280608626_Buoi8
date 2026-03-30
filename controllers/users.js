@@ -83,6 +83,15 @@ module.exports = {
         });
 
         for (const userData of rows) {
+            // Check if user already exists
+            const existingUser = await userModel.findOne({
+                $or: [{ username: userData.username }, { email: userData.email }]
+            });
+            if (existingUser) {
+                console.log(`Skipping existing user: ${userData.username} / ${userData.email}`);
+                continue;
+            }
+
             const password = generateRandomPassword(16);
             const newUser = new userModel({
                 username: userData.username,
@@ -93,7 +102,17 @@ module.exports = {
             });
 
             await newUser.save();
-            await sendMail(userData.email, password);
+            try {
+                await sendMail(userData.email, password);
+                console.log(`Sent email to ${userData.email}`);
+            } catch (mailError) {
+                console.error(`Failed to send email to ${userData.email}: ${mailError.message}`);
+                // If rate limited, wait longer and retry once if needed or just continue
+            }
+            
+            // Wait for 5 seconds to avoid Mailtrap rate limit
+            await new Promise(resolve => setTimeout(resolve, 5000));
+            
             users.push({ username: userData.username, email: userData.email, password });
         }
 

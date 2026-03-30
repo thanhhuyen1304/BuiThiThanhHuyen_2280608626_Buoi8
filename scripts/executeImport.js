@@ -11,6 +11,16 @@ async function runImport() {
         const filePath = path.join(__dirname, '../user.xlsx');
         console.log(`Starting import from: ${filePath}`);
 
+        // Ensure "user" role exists
+        const roleModel = require('../schemas/roles');
+        let userRole = await roleModel.findOne({ name: { $regex: /user/i } });
+        if (!userRole) {
+            console.log("Creating 'user' role...");
+            userRole = new roleModel({ name: 'user', description: 'Standard user role' });
+            await userRole.save();
+            console.log("'user' role created.");
+        }
+
         const result = await userController.ImportUsersFromExcel(filePath);
         
         console.log("Import successful!");
